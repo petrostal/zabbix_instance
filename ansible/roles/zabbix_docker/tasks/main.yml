@@ -1,0 +1,209 @@
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - zabbix_postgres_password is defined
+      - zabbix_postgres_password | length >= 24
+    fail_msg: "Set zabbix_postgres_password to a long secret, preferably through ansible-vault."
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - openssl
+      - python3-apt
+      - ufw
+    state: present
+    update_cache: true
+  environment: "{{ zabbix_proxy_env | default({}) }}"
+
+- name: Create Docker apt keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Docker apt key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
+  environment: "{{ zabbix_proxy_env | default({}) }}"
+
+- name: Add Docker apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ ansible_architecture_map[ansible_architecture] | default(ansible_architecture) }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker
+    state: present
+    update_cache: true
+  environment: "{{ zabbix_proxy_env | default({}) }}"
+
+- name: Install Docker packages
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+  environment: "{{ zabbix_proxy_env | default({}) }}"
+
+- name: Create Docker systemd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: zabbix_proxy_env is defined
+
+- name: Configure Docker daemon proxy
+  ansible.builtin.template:
+    src: docker-proxy.conf.j2
+    dest: /etc/systemd/system/docker.service.d/proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: zabbix_proxy_env is defined
+  notify: Restart docker
+
+- name: Enable Docker service
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Flush Docker handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Create deployment directory
+  ansible.builtin.file:
+    path: /opt/zabbix
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create SSL directory
+  ansible.builtin.file:
+    path: "{{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Generate self-signed TLS certificate
+  ansible.builtin.command:
+    cmd: >-
+      openssl req -x509 -nodes -newkey rsa:4096 -days {{ zabbix_self_signed_days | default(365) }}
+      -keyout {{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/ssl.key
+      -out {{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/ssl.crt
+      -subj "/CN={{ zabbix_tls_common_name | default(inventory_hostname) }}"
+      -addext "subjectAltName=DNS:{{ zabbix_tls_common_name | default(inventory_hostname) }},IP:{{ ansible_host | default(ansible_default_ipv4.address) }}"
+  args:
+    creates: "{{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/ssl.crt"
+  when: zabbix_generate_self_signed_cert | default(true)
+
+- name: Generate Nginx DH params
+  ansible.builtin.command:
+    cmd: "openssl dhparam -out {{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/dhparam.pem {{ zabbix_dhparam_bits | default(2048) }}"
+  args:
+    creates: "{{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/dhparam.pem"
+  when: zabbix_generate_dhparam | default(true)
+
+- name: Set SSL file permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/ssl.crt"
+      mode: "0644"
+    - path: "{{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/ssl.key"
+      mode: "0644"
+    - path: "{{ zabbix_ssl_dir | default('/opt/zabbix/ssl') }}/dhparam.pem"
+      mode: "0644"
+
+- name: Copy Docker Compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../compose/docker-compose.yml"
+    dest: /opt/zabbix/docker-compose.yml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Render environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: /opt/zabbix/.env
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Pull Docker images
+  community.docker.docker_compose_v2_pull:
+    project_src: /opt/zabbix
+    project_name: "{{ zabbix_project_name | default('zabbix-server') }}"
+  environment: "{{ zabbix_proxy_env | default({}) }}"
+
+- name: Start Zabbix stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/zabbix
+    project_name: "{{ zabbix_project_name | default('zabbix-server') }}"
+    state: present
+  environment: "{{ zabbix_proxy_env | default({}) }}"
+
+- name: Install Docker firewall helper
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../scripts/zabbix-docker-firewall.sh"
+    dest: /usr/local/sbin/zabbix-docker-firewall.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Docker firewall service
+  ansible.builtin.template:
+    src: zabbix-docker-firewall.service.j2
+    dest: /etc/systemd/system/zabbix-docker-firewall.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable Docker firewall service
+  ansible.builtin.systemd:
+    name: zabbix-docker-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Allow SSH through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ zabbix_ssh_port | default(22) }}"
+    proto: tcp
+
+- name: Allow Zabbix ports from trusted network through UFW
+  community.general.ufw:
+    rule: allow
+    from_ip: "{{ zabbix_trusted_cidr | default('172.30.0.0/16') }}"
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "{{ zabbix_web_port | default(8080) }}"
+    - "{{ zabbix_https_port | default(8443) }}"
+    - "{{ zabbix_server_port | default(10051) }}"
+    - "{{ zabbix_agent_port | default(10050) }}"
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+    policy: deny
+    direction: incoming

@@ -1,0 +1,5 @@
+zabbix_postgres_password: "change-me-use-ansible-vault-long-random-secret"
+zabbix_trusted_cidr: "172.30.0.0/16"
+zabbix_public_iface: "ens18"
+zabbix_tls_common_name: "zabbix"
+zabbix_agent_hostname: "zabbix-host"

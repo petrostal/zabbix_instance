@@ -1,0 +1,15 @@
+[Unit]
+Description=Restrict published Docker ports for Zabbix
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+Environment=TRUSTED_CIDR={{ zabbix_trusted_cidr | default('172.30.0.0/16') }}
+Environment=PUBLIC_IFACE={{ zabbix_public_iface | default('ens18') }}
+Environment=PORTS={{ zabbix_restricted_docker_ports | default('8080,8443,10051') }}
+ExecStart=/usr/local/sbin/zabbix-docker-firewall.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

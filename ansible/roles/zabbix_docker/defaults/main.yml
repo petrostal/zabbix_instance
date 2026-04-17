@@ -1,0 +1,27 @@
+ansible_architecture_map:
+  x86_64: amd64
+  aarch64: arm64
+  armv7l: armhf
+
+zabbix_project_name: zabbix-server
+zabbix_php_tz: Europe/Nicosia
+zabbix_postgres_db: zabbix
+zabbix_postgres_user: zabbix
+zabbix_web_port: 8080
+zabbix_https_port: 8443
+zabbix_server_port: 10051
+zabbix_agent_port: 10050
+zabbix_ssl_dir: /opt/zabbix/ssl
+zabbix_image_tag: ubuntu-7.4.8
+postgres_image_tag: 16-alpine
+docker_log_max_size: 10m
+docker_log_max_file: 5
+zabbix_agent_hostname: docker-zabbix-server
+zabbix_enable_snmp_traps: false
+zabbix_trusted_cidr: 172.30.0.0/16
+zabbix_public_iface: ens18
+zabbix_restricted_docker_ports: "8080,8443,10051"
+zabbix_generate_self_signed_cert: true
+zabbix_generate_dhparam: true
+zabbix_dhparam_bits: 2048
+zabbix_self_signed_days: 365

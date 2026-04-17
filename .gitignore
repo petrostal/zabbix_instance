@@ -1,0 +1,17 @@
+.env
+.venv/
+compose/.env
+data/
+backups/
+compose/ssl/
+ansible/inventory/test-*.yml
+*.log
+*.retry
+
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+
+.DS_Store

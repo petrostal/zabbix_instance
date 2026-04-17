@@ -1,0 +1,5 @@
+- name: Deploy Zabbix Docker Compose stack
+  hosts: zabbix_servers
+  become: true
+  roles:
+    - zabbix_docker

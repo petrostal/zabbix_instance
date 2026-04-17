@@ -1,0 +1,113 @@
+services:
+  postgres-server:
+    image: postgres:${POSTGRES_IMAGE_TAG:-16-alpine}
+    restart: unless-stopped
+    logging: &default-logging
+      driver: json-file
+      options:
+        max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+        max-file: ${DOCKER_LOG_MAX_FILE:-5}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - zabbix-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:${ZABBIX_IMAGE_TAG:-ubuntu-7.4-latest}
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      postgres-server:
+        condition: service_healthy
+    environment:
+      DB_SERVER_HOST: postgres-server
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ZBX_ENABLE_SNMP_TRAPS: ${ZBX_ENABLE_SNMP_TRAPS:-false}
+    ports:
+      - "${ZABBIX_SERVER_PORT:-10051}:10051"
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/127.0.0.1/10051'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - zabbix_alertscripts:/usr/lib/zabbix/alertscripts:rw
+      - zabbix_externalscripts:/usr/lib/zabbix/externalscripts:rw
+      - zabbix_export:/var/lib/zabbix/export:rw
+      - zabbix_modules:/var/lib/zabbix/modules:rw
+      - zabbix_enc:/var/lib/zabbix/enc:rw
+      - zabbix_ssh_keys:/var/lib/zabbix/ssh_keys:rw
+      - zabbix_mibs:/var/lib/zabbix/mibs:ro
+    networks:
+      - zabbix-net
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:${ZABBIX_IMAGE_TAG:-ubuntu-7.4-latest}
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      postgres-server:
+        condition: service_healthy
+      zabbix-server:
+        condition: service_started
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: postgres-server
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PHP_TZ: ${PHP_TZ}
+    ports:
+      - "${ZABBIX_WEB_PORT:-8080}:8080"
+      - "${ZABBIX_HTTPS_PORT:-8443}:8443"
+    volumes:
+      - ${ZABBIX_SSL_DIR:-./ssl}:/etc/ssl/nginx:ro
+    networks:
+      - zabbix-net
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent2:${ZABBIX_IMAGE_TAG:-ubuntu-7.4-latest}
+    restart: unless-stopped
+    logging: *default-logging
+    profiles:
+      - agent
+    privileged: true
+    environment:
+      ZBX_HOSTNAME: ${ZBX_AGENT_HOSTNAME}
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_SERVER_PORT: 10051
+      ZBX_PASSIVE_ALLOW: "true"
+      ZBX_ACTIVE_ALLOW: "true"
+    volumes:
+      - /var/run:/var/run
+      - /sys:/sys:ro
+      - /proc:/proc:ro
+      - /:/rootfs:ro
+    networks:
+      - zabbix-net
+
+volumes:
+  postgres_data:
+  zabbix_alertscripts:
+  zabbix_externalscripts:
+  zabbix_export:
+  zabbix_modules:
+  zabbix_enc:
+  zabbix_ssh_keys:
+  zabbix_mibs:
+
+networks:
+  zabbix-net:
+    driver: bridge
