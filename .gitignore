@@ -12,6 +12,7 @@ ansible/inventory/test-*.yml
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfplan
 crash.log
 
 .DS_Store

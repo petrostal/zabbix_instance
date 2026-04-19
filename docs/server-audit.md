@@ -87,7 +87,7 @@ The old compose file was copied to `/root/zabbix-old-compose/` before migration.
 
 Date: 2026-04-17
 
-A fresh Ubuntu 24.04 cloud-init VM was created on Proxmox and deployed through Ansible:
+A fresh Ubuntu 24.04 cloud-init VM was created on Proxmox and deployed through Ansible. The first pass used direct `qm` commands to validate the VM shape; the final pass recreated the VM through Terraform and then deployed Zabbix through Ansible.
 
 - Proxmox host: `root@proxmox`
 - VMID: `101`
@@ -104,6 +104,9 @@ The VLAN did not have direct internet egress, so deployment used a temporary loc
 
 Validation results:
 
+- Terraform `init`, `fmt`, and `validate` completed successfully.
+- Terraform `apply` created VM `101`.
+- Terraform state contains `module.zabbix_vm.proxmox_virtual_environment_vm.this`.
 - Ansible playbook completed with `failed=0`.
 - Docker service is active.
 - `zabbix-docker-firewall.service` is active.
@@ -112,3 +115,9 @@ Validation results:
 - `zabbix-server-zabbix-web-1` is healthy.
 - `https://172.30.193.76:8443/` returned HTTP `200`.
 - `http://172.30.193.76:8080/` returned HTTP `200`.
+
+Terraform-specific notes:
+
+- Proxmox provider requires direct SSH to the node for cloud image disk import.
+- The provider does not read local `~/.ssh/config`, so `proxmox_ssh_node_address` and `proxmox_ssh_private_key_file` are configured explicitly.
+- QEMU guest agent is disabled in Terraform by default because the stock Ubuntu cloud image does not include `qemu-guest-agent`; enabling it without baking the agent into the image makes Terraform wait until timeout.

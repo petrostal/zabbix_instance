@@ -72,3 +72,17 @@ Use `docs/server-audit.md` for current server state and remaining production har
 The Ansible playbook can provision a fresh Ubuntu server and deploy the same stack to `/opt/zabbix`.
 
 Read [ansible/README.md](ansible/README.md) before running it because `zabbix_postgres_password`, `zabbix_trusted_cidr`, and `zabbix_public_iface` must match the target environment.
+
+## Terraform
+
+Terraform can create the Proxmox VM, then Ansible deploys Zabbix into it. The tested path is:
+
+```bash
+cd terraform/envs/prod
+terraform init
+terraform apply
+cd ../../..
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy-zabbix.yml
+```
+
+Read [terraform/README.md](terraform/README.md) and [terraform/envs/prod/README.md](terraform/envs/prod/README.md) before applying; Proxmox API token and SSH key settings are required.

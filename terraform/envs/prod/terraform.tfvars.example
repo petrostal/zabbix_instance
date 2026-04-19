@@ -1,0 +1,24 @@
+proxmox_endpoint = "https://proxmox:8006/"
+proxmox_node_name = "proxmox"
+proxmox_ssh_node_address = "172.30.193.18"
+proxmox_ssh_private_key_file = "~/.ssh/id_rsa"
+
+ssh_public_key_files = [
+  "~/.ssh/id_rsa.pub"
+]
+
+vm_name = "zabbix-test"
+vm_id   = 101
+
+vm_cloud_image_file_id = "local:iso/noble-server-cloudimg-amd64.img"
+
+vm_network_bridge = "vmbr193"
+vm_ipv4_address   = "172.30.193.76/24"
+vm_ipv4_gateway   = "172.30.193.1"
+vm_dns_domain     = "work.work"
+vm_dns_servers    = ["172.30.193.1"]
+
+vm_cpu_cores    = 4
+vm_memory_mb    = 8192
+vm_disk_size_gb = 64
+vm_qemu_guest_agent_enabled = false
