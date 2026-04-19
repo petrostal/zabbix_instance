@@ -1,0 +1,29 @@
+# Declarative Zabbix objects managed from Git.
+#
+# Keep secrets out of this file. For secret macros, use value_env so the value is
+# read from the local environment at apply time.
+
+host_groups:
+  - Linux servers
+  - Zabbix servers
+
+hosts:
+  - host: zabbix-test
+    name: Zabbix Test
+    status: enabled
+    groups:
+      - Linux servers
+      - Zabbix servers
+    templates:
+      - Linux by Zabbix agent
+    interfaces:
+      - type: agent
+        ip: 172.30.193.76
+        port: 10050
+    tags:
+      - tag: managed_by
+        value: git
+      - tag: environment
+        value: lab
+    macros: []
+    inventory_mode: disabled

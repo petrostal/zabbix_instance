@@ -7,6 +7,8 @@ compose/ssl/
 ansible/inventory/test-*.yml
 *.log
 *.retry
+__pycache__/
+*.py[cod]
 
 .terraform/
 *.tfstate

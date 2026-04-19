@@ -1,6 +1,6 @@
 # Zabbix Docker Deployment
 
-Repository scaffold for deploying a Zabbix server with Docker Compose.
+Repository scaffold for deploying a Zabbix server with Docker Compose and managing selected Zabbix objects as code.
 
 Current audited server:
 
@@ -58,8 +58,10 @@ make check
 ## Layout
 
 - `compose/` - Docker Compose deployment for Zabbix, PostgreSQL, web UI, and optional agent.
-- `ansible/` - future host provisioning and deployment automation.
-- `terraform/` - future infrastructure definitions.
+- `ansible/` - host provisioning and deployment automation.
+- `terraform/` - Proxmox VM infrastructure definitions.
+- `zabbix-config/` - host/group/template-link configuration applied through the Zabbix API.
+- `zabbix-native/` - Zabbix-native YAML exports applied through `configuration.import`.
 - `docs/` - operational notes and server audit results.
 - `scripts/` - helper scripts for deployment and checks.
 
@@ -86,3 +88,46 @@ ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy-zabbix.
 ```
 
 Read [terraform/README.md](terraform/README.md) and [terraform/envs/prod/README.md](terraform/envs/prod/README.md) before applying; Proxmox API token and SSH key settings are required.
+
+## Zabbix Config as Code
+
+After Zabbix is running, apply selected Zabbix objects from Git:
+
+```bash
+python3 -m pip install -r zabbix-config/requirements.txt
+export ZABBIX_URL="https://172.30.193.75:8443"
+export ZABBIX_API_TOKEN="..."
+export ZABBIX_VERIFY_TLS=false
+make zabbix-config-dry-run
+make zabbix-config-apply
+```
+
+The default config is [zabbix-config/config.yml](zabbix-config/config.yml). It manages declared host groups and hosts, including interfaces, tags, macros, and template links. It does not delete missing Zabbix objects.
+
+For a full fresh deployment on Proxmox, the order is:
+
+```bash
+cd terraform/envs/prod
+terraform apply
+cd ../../..
+ansible-playbook -i ansible/inventory/hosts.yml ansible/playbooks/deploy-zabbix.yml
+make zabbix-config-apply
+```
+
+Read [zabbix-config/README.md](zabbix-config/README.md) for API authentication and export examples.
+
+## Native Zabbix YAML
+
+For templates, maps, media types, and larger host exports, use Zabbix's native YAML format:
+
+```bash
+export ZABBIX_URL="https://172.30.193.75:8443"
+export ZABBIX_API_TOKEN="..."
+export ZABBIX_VERIFY_TLS=false
+
+make zabbix-native-export-host HOST=zabbix-test > zabbix-native/exports/zabbix-test.yaml
+make zabbix-native-validate FILE=zabbix-native/exports/zabbix-test.yaml
+make zabbix-native-import FILE=zabbix-native/exports/zabbix-test.yaml
+```
+
+The default import rules are [zabbix-native/rules-safe.yml](zabbix-native/rules-safe.yml). They create and update objects but do not delete missing objects. Read [zabbix-native/README.md](zabbix-native/README.md) before enabling any `deleteMissing` rule.

@@ -1,0 +1,57 @@
+# Conservative import rules for Zabbix native YAML.
+#
+# These rules create and update declared objects, but do not delete anything
+# missing from the import file.
+rules:
+  host_groups:
+    createMissing: true
+    updateExisting: true
+  template_groups:
+    createMissing: true
+    updateExisting: true
+  templates:
+    createMissing: true
+    updateExisting: true
+  hosts:
+    createMissing: true
+    updateExisting: true
+  templateLinkage:
+    createMissing: true
+    deleteMissing: false
+  items:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  discoveryRules:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  triggers:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  graphs:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  httptests:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  valueMaps:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  templateDashboards:
+    createMissing: true
+    updateExisting: true
+    deleteMissing: false
+  maps:
+    createMissing: true
+    updateExisting: true
+  images:
+    createMissing: true
+    updateExisting: true
+  mediaTypes:
+    createMissing: true
+    updateExisting: true
