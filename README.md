@@ -69,6 +69,17 @@ make check
 
 Use `docs/server-audit.md` for current server state and remaining production hardening notes.
 
+## CI/CD
+
+GitHub Actions and GitLab CI are configured for direct-push deployment of Zabbix configuration:
+
+- every push validates config and native YAML files;
+- push to the default branch applies Zabbix config through the API;
+- deploy jobs are serialized so two config pushes do not apply concurrently;
+- Terraform and Ansible remain manual deployment steps because they can affect server availability.
+
+Read [docs/cicd.md](docs/cicd.md) for required secrets, runner placement, and the recommended workflow for adding hosts without restarting Zabbix.
+
 ## Ansible
 
 The Ansible playbook can provision a fresh Ubuntu server and deploy the same stack to `/opt/zabbix`.

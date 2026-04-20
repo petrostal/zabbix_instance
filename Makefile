@@ -9,7 +9,7 @@ PYTHON ?= $(shell if [ -x .venv/bin/python ]; then echo .venv/bin/python; else e
 
 COMPOSE = docker compose -p $(PROJECT) --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
 
-.PHONY: config up down ps logs pull restart backup check agent-up zabbix-config-validate zabbix-config-dry-run zabbix-config-apply zabbix-config-export zabbix-native-validate zabbix-native-import zabbix-native-export-host
+.PHONY: config up down ps logs pull restart backup check agent-up zabbix-config-validate zabbix-config-dry-run zabbix-config-apply zabbix-config-export zabbix-native-validate zabbix-native-import zabbix-native-export-host ci-validate ci-deploy-zabbix-config
 
 config:
 	$(COMPOSE) config
@@ -61,3 +61,9 @@ zabbix-native-import:
 
 zabbix-native-export-host:
 	$(PYTHON) scripts/zabbix-native-yaml.py export --host "$(HOST)"
+
+ci-validate:
+	PYTHON=$(PYTHON) scripts/ci-validate.sh
+
+ci-deploy-zabbix-config:
+	PYTHON=$(PYTHON) scripts/ci-deploy-zabbix-config.sh

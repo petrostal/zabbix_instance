@@ -1,0 +1,37 @@
+stages:
+  - validate
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHON: "python"
+
+cache:
+  paths:
+    - .cache/pip
+
+validate:zabbix-config:
+  stage: validate
+  image: python:3.12-slim
+  before_script:
+    - python -m pip install -r zabbix-config/requirements.txt
+  script:
+    - scripts/ci-validate.sh
+  rules:
+    - when: always
+
+deploy:zabbix-config:
+  stage: deploy
+  image: python:3.12-slim
+  resource_group: zabbix-production
+  environment:
+    name: production
+    url: $ZABBIX_URL
+  before_script:
+    - python -m pip install -r zabbix-config/requirements.txt
+  script:
+    - scripts/ci-deploy-zabbix-config.sh
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: on_success
+    - when: never
